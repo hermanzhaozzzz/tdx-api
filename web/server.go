@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -804,7 +805,25 @@ func main() {
 	http.HandleFunc("/api/tasks", handleListTasks)
 	http.HandleFunc("/api/tasks/", handleTaskOperations)
 
-	port := ":8080"
-	log.Printf("服务启动成功，访问 http://localhost%s\n", port)
-	log.Fatal(http.ListenAndServe(port, nil))
+	address, err := resolveListenAddress()
+	if err != nil {
+		log.Fatalf("服务端口配置无效: %v", err)
+	}
+	log.Printf("服务启动成功，访问 http://localhost%s\n", address)
+	log.Fatal(http.ListenAndServe(address, nil))
+}
+
+func resolveListenAddress() (string, error) {
+	raw, configured := os.LookupEnv("TDX_API_PORT")
+	if !configured || raw == "" {
+		return ":8080", nil
+	}
+	if raw != strings.TrimSpace(raw) {
+		return "", fmt.Errorf("TDX_API_PORT必须是1到65535之间的整数")
+	}
+	port, err := strconv.Atoi(raw)
+	if err != nil || port < 1 || port > 65535 {
+		return "", fmt.Errorf("TDX_API_PORT必须是1到65535之间的整数")
+	}
+	return fmt.Sprintf(":%d", port), nil
 }
