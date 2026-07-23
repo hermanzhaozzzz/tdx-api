@@ -113,6 +113,27 @@ func CompleteTHSQFQDailyTail(
 	}, nil
 }
 
+// CompleteTHSQFQDailyThrough validates a historical qfq tail without
+// consulting today's asynchronous THS endpoint.  This keeps an older,
+// explicitly requested as-of date independent from a newer unstable tail.
+func CompleteTHSQFQDailyThrough(
+	all []*Kline,
+	raw []*protocol.Kline,
+	through time.Time,
+	now time.Time,
+) (*THSQFQTailResult, error) {
+	throughDate := dateKey(through.In(shanghaiLocation))
+	filteredAll := filterKlinesThrough(all, throughDate)
+	filteredRaw := filterRawKlinesThrough(raw, throughDate)
+	if len(filteredAll) == 0 {
+		return nil, fmt.Errorf("同花顺前复权 all.js 缺少截至 %s 的历史数据", throughDate)
+	}
+	if len(filteredRaw) == 0 {
+		return nil, fmt.Errorf("TDX 原始日线缺少截至 %s 的历史数据", throughDate)
+	}
+	return CompleteTHSQFQDailyTail(filteredAll, filteredRaw, nil, now)
+}
+
 func validateUniqueKlineDates(klines []*Kline) error {
 	seen := make(map[string]struct{}, len(klines))
 	for _, kline := range klines {
@@ -147,6 +168,26 @@ func filterKlinesBefore(klines []*Kline, date string) []*Kline {
 	filtered := make([]*Kline, 0, len(klines))
 	for _, kline := range klines {
 		if dateKey(time.Unix(kline.Date, 0).In(shanghaiLocation)) < date {
+			filtered = append(filtered, kline)
+		}
+	}
+	return filtered
+}
+
+func filterKlinesThrough(klines []*Kline, date string) []*Kline {
+	filtered := make([]*Kline, 0, len(klines))
+	for _, kline := range klines {
+		if dateKey(time.Unix(kline.Date, 0).In(shanghaiLocation)) <= date {
+			filtered = append(filtered, kline)
+		}
+	}
+	return filtered
+}
+
+func filterRawKlinesThrough(klines []*protocol.Kline, date string) []*protocol.Kline {
+	filtered := make([]*protocol.Kline, 0, len(klines))
+	for _, kline := range klines {
+		if dateKey(kline.Time.In(shanghaiLocation)) <= date {
 			filtered = append(filtered, kline)
 		}
 	}

@@ -172,7 +172,7 @@ func handleGetKline(w http.ResponseWriter, r *http.Request) {
 
 // getQfqKlineDay 获取前复权日K线数据
 func getQfqKlineDay(code string) (*protocol.KlineResp, error) {
-	resp, _, err := getQfqKlineDayDetailed(code, time.Now())
+	resp, _, err := getQfqKlineDayDetailed(code, time.Now(), nil)
 	return resp, err
 }
 
@@ -184,7 +184,7 @@ type qfqKlineMetadata struct {
 
 var qfqShanghaiLocation = time.FixedZone("Asia/Shanghai", 8*60*60)
 
-func getQfqKlineDayDetailed(code string, now time.Time) (*protocol.KlineResp, qfqKlineMetadata, error) {
+func getQfqKlineDayDetailed(code string, now time.Time, through *time.Time) (*protocol.KlineResp, qfqKlineMetadata, error) {
 	// 使用同花顺API获取前复权数据
 	klines, err := extend.GetTHSDayKline(code, extend.THS_QFQ)
 	if err != nil {
@@ -204,14 +204,27 @@ func getQfqKlineDayDetailed(code string, now time.Time) (*protocol.KlineResp, qf
 		return nil, qfqKlineMetadata{}, fmt.Errorf("TDX 原始日线为空，无法核验同花顺前复权尾部")
 	}
 
-	tail, err := extend.CompleteTHSQFQDailyTail(
-		klines,
-		tdxResp.List,
-		func() (*extend.Kline, error) {
-			return extend.GetTHSTodayKline(code, extend.THS_QFQ)
-		},
-		now,
-	)
+	var tail *extend.THSQFQTailResult
+	if through != nil {
+		// Historical callers must not be blocked by an unstable newer THS
+		// tail.  Limit both facts to the requested as-of date and deliberately
+		// do not consult today.js.
+		tail, err = extend.CompleteTHSQFQDailyThrough(
+			klines,
+			tdxResp.List,
+			*through,
+			now,
+		)
+	} else {
+		tail, err = extend.CompleteTHSQFQDailyTail(
+			klines,
+			tdxResp.List,
+			func() (*extend.Kline, error) {
+				return extend.GetTHSTodayKline(code, extend.THS_QFQ)
+			},
+			now,
+		)
+	}
 	if err != nil {
 		return nil, qfqKlineMetadata{}, fmt.Errorf("核验同花顺前复权收盘尾部失败: %w", err)
 	}

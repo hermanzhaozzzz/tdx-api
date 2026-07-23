@@ -181,6 +181,45 @@ func TestCompleteTHSQFQDailyTailUsesRawVolumeAndAmount(t *testing.T) {
 	}
 }
 
+func TestCompleteTHSQFQDailyThroughIgnoresNewerUnstableTail(t *testing.T) {
+	all := []*Kline{
+		testTHSKline("2026-07-22", 1210, 1250, 1200, 1240),
+		testTHSKline("2026-07-23", 1300, 1300, 1300, 1300),
+	}
+	raw := []*protocol.Kline{
+		testRawKline("2026-07-22", 1210, 1250, 1200, 1240),
+		testRawKline("2026-07-23", 1300, 1375, 1290, 1304),
+	}
+
+	result, err := CompleteTHSQFQDailyThrough(
+		all,
+		raw,
+		testDate("2026-07-22"),
+		testShanghaiTime("2026-07-23 16:00"),
+	)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.TradeDate != "2026-07-22" || len(result.Klines) != 1 {
+		t.Fatalf("unexpected historical tail: %#v", result)
+	}
+}
+
+func TestCompleteTHSQFQDailyThroughRejectsMissingRequestedTail(t *testing.T) {
+	_, err := CompleteTHSQFQDailyThrough(
+		[]*Kline{testTHSKline("2026-07-21", 1210, 1250, 1200, 1240)},
+		[]*protocol.Kline{
+			testRawKline("2026-07-21", 1210, 1250, 1200, 1240),
+			testRawKline("2026-07-22", 1240, 1260, 1220, 1250),
+		},
+		testDate("2026-07-22"),
+		testShanghaiTime("2026-07-23 16:00"),
+	)
+	if err == nil {
+		t.Fatal("expected missing historical qfq tail to fail")
+	}
+}
+
 func testTHSKline(date string, open, high, low, close protocol.Price) *Kline {
 	return &Kline{
 		Code:  "SZ159786",

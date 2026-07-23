@@ -783,7 +783,17 @@ func handleGetKlineAllTHS(w http.ResponseWriter, r *http.Request) {
 	}
 	limit := parsePositiveInt(r.URL.Query().Get("limit"))
 
-	list, tailMeta, err := fetchStockKlineAllTHS(code, klineType)
+	var through *time.Time
+	if value := strings.TrimSpace(r.URL.Query().Get("end_date")); value != "" {
+		parsed, err := time.ParseInLocation("2006-01-02", value, qfqShanghaiLocation)
+		if err != nil {
+			errorResponse(w, "end_date 参数格式错误，应为 YYYY-MM-DD")
+			return
+		}
+		through = &parsed
+	}
+
+	list, tailMeta, err := fetchStockKlineAllTHS(code, klineType, through)
 	if err != nil {
 		errorResponse(w, fmt.Sprintf("获取同花顺K线失败: %v", err))
 		return
@@ -1222,8 +1232,8 @@ func fetchStockKlineAllTDX(code, klineType string) ([]*protocol.Kline, error) {
 	}
 }
 
-func fetchStockKlineAllTHS(code, klineType string) ([]*protocol.Kline, qfqKlineMetadata, error) {
-	resp, meta, err := getQfqKlineDayDetailed(code, time.Now())
+func fetchStockKlineAllTHS(code, klineType string, through *time.Time) ([]*protocol.Kline, qfqKlineMetadata, error) {
+	resp, meta, err := getQfqKlineDayDetailed(code, time.Now(), through)
 	if err != nil {
 		return nil, qfqKlineMetadata{}, err
 	}
