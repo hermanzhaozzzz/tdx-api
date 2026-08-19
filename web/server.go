@@ -37,7 +37,7 @@ func init() {
 		log.Printf("创建数据目录失败: %v", err)
 	}
 	if codes, err := tdx.NewCodesSqlite(client); err != nil {
-		log.Printf("初始化代码库失败: %v", err)
+		log.Fatalf("初始化代码库失败: %v", err)
 	} else {
 		tdx.DefaultCodes = codes
 		if err := tdx.DefaultCodes.Update(); err != nil {

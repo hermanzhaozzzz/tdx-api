@@ -938,6 +938,14 @@ func handleGetServerStatus(w http.ResponseWriter, r *http.Request) {
 // 健康检查
 func handleHealthCheck(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	if tdx.DefaultCodes == nil || len(tdx.DefaultCodes.Map) == 0 {
+		w.WriteHeader(http.StatusServiceUnavailable)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"status": "unhealthy",
+			"time":   fmt.Sprintf("%d", 1730617200),
+		})
+		return
+	}
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"status": "healthy",
