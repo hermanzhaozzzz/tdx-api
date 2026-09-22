@@ -756,7 +756,7 @@ func handleGetKlineAllTDX(w http.ResponseWriter, r *http.Request) {
 	}
 	limit := parsePositiveInt(r.URL.Query().Get("limit"))
 
-	list, err := fetchStockKlineAllTDX(code, klineType)
+	list, err := fetchStockKlineAllTDX(code, klineType, limit)
 	if err != nil {
 		errorResponse(w, fmt.Sprintf("获取K线失败: %v", err))
 		return
@@ -1173,7 +1173,7 @@ func parseBool(value string) bool {
 	}
 }
 
-func fetchStockKlineAllTDX(code, klineType string) ([]*protocol.Kline, error) {
+func fetchStockKlineAllTDX(code, klineType string, limit int) ([]*protocol.Kline, error) {
 	switch strings.ToLower(klineType) {
 	case "minute1":
 		resp, err := client.GetKlineMinuteAll(code)
@@ -1206,7 +1206,15 @@ func fetchStockKlineAllTDX(code, klineType string) ([]*protocol.Kline, error) {
 		}
 		return resp.List, nil
 	case "day":
-		resp, err := client.GetKlineDayAll(code)
+		var resp *protocol.KlineResp
+		var err error
+		if limit > 0 && limit < 800 {
+			// One extra bar preserves the first returned bar's previous close.
+			// Limit the upstream request, not only the final HTTP response.
+			resp, err = client.GetKlineDay(code, 0, uint16(limit+1))
+		} else {
+			resp, err = client.GetKlineDayAll(code)
+		}
 		if err != nil {
 			return nil, err
 		}
