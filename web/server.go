@@ -32,33 +32,14 @@ func init() {
 	}
 	log.Println("成功连接到通达信服务器")
 
-	// 初始化代码缓存
-	if err = os.MkdirAll(tdx.DefaultDatabaseDir, 0755); err != nil {
-		log.Printf("创建数据目录失败: %v", err)
-	}
-	if codes, err := tdx.NewCodesSqlite(client); err != nil {
-		log.Fatalf("初始化代码库失败: %v", err)
-	} else {
-		tdx.DefaultCodes = codes
-		if err := tdx.DefaultCodes.Update(); err != nil {
-			log.Printf("更新代码库失败: %v", err)
-		} else {
-			log.Printf("已加载股票代码，共 %d 条", len(tdx.DefaultCodes.Map))
-		}
-	}
-
 	manager, err = tdx.NewManage(&tdx.ManageConfig{
 		Number: 4,
 	})
 	if err != nil {
 		log.Fatalf("初始化数据管理器失败: %v", err)
 	}
-	if err := manager.Codes.Update(); err != nil {
-		log.Printf("更新管理器代码库失败: %v", err)
-	}
-	if err := manager.Workday.Update(); err != nil {
-		log.Printf("更新交易日数据失败: %v", err)
-	}
+	tdx.DefaultCodes = manager.Codes
+	log.Printf("已加载股票代码，共 %d 条", len(tdx.DefaultCodes.Map))
 	manager.Cron.Start()
 }
 

@@ -102,25 +102,21 @@ func NewCodes(c *Client, db *xorm.Engine) (*Codes, error) {
 		task.Start()
 	}
 
-	{ //判断是否更新过,更新过则不更新
-		now := time.Now()
-		node := time.Date(now.Year(), now.Month(), now.Day(), 9, 0, 0, 0, time.Local)
-		updateTime := time.Unix(update.Time, 0)
-		if now.Sub(node) > 0 {
-			//当前时间在9点之后,且更新时间在9点之前,需要更新
-			if updateTime.Sub(node) < 0 {
-				return cc, cc.Update()
-			}
-		} else {
-			//当前时间在9点之前,且更新时间在上个节点之前
-			if updateTime.Sub(node.Add(time.Hour*24)) < 0 {
-				return cc, cc.Update()
-			}
-		}
+	if codesNeedUpdate(update.Time, time.Now()) {
+		return cc, cc.Update()
 	}
 
 	//从缓存中加载
 	return cc, cc.Update(true)
+}
+
+// codesNeedUpdate 判断缓存是否早于最近一个早上9点的更新节点。
+func codesNeedUpdate(updated int64, now time.Time) bool {
+	node := time.Date(now.Year(), now.Month(), now.Day(), 9, 0, 0, 0, now.Location())
+	if now.Before(node) {
+		node = node.Add(-24 * time.Hour)
+	}
+	return time.Unix(updated, 0).Before(node)
 }
 
 type Codes struct {

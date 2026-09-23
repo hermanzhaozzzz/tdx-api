@@ -30,3 +30,12 @@ func TestHandleHealthCheckRequiresInitializedCodes(t *testing.T) {
 		t.Fatalf("got status %d, want %d", recorder.Code, http.StatusOK)
 	}
 }
+
+func TestInitializedServerReusesManagerCodes(t *testing.T) {
+	if manager == nil || manager.Codes == nil {
+		t.Fatal("manager code cache is not initialized")
+	}
+	if tdx.DefaultCodes != manager.Codes {
+		t.Fatal("server and manager use different code caches")
+	}
+}
