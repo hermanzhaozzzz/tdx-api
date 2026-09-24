@@ -114,7 +114,9 @@ func (this *Workday) Update() error {
 
 	now := time.Now()
 	if lastWorkday.Unix < IntegerDay(now).Unix() {
-		resp, err := this.Client.GetIndexDayAll("sh000001")
+		resp, err := this.Client.GetIndexDayUntil("sh000001", func(bar *protocol.Kline) bool {
+			return bar.Time.Unix() <= lastWorkday.Unix
+		})
 		if err != nil {
 			logs.Err(err)
 			return err
